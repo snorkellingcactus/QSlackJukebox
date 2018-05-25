@@ -30,6 +30,10 @@ class Player {
 class Streamlink : public Player {
     public:
         Streamlink() : Player("streamlink", "Streamlink") {}
+
+        QStringList arguments(QString resource) {
+            return  Player::arguments(resource) << QStringList("worst");
+        }
 };
 
 class VLC : public Player {
@@ -40,7 +44,7 @@ class VLC : public Player {
 template <class PlayerType> class YoutubeDL : public Player {
     public:
         YoutubeDL(PlayerType _slave);
-    private:
+
         QStringList arguments(QString resource) {
             return  QStringList("-c") <<
                     QString("youtube-dl -o - ") + resource + " | " +
@@ -64,22 +68,20 @@ private Q_SLOTS:
     void onMessage(QString message);
 private slots:
     void onHTTPFinished();
-    void onClose();
     void onPlayerFinished(int exitCode, QProcess::ExitStatus exitStatus);
 private:
     void tryNextPlayer();
-    void startPlayer(Player *player_type);
-    void kill(QProcess *process);
+    void killCurrentPlayer();
 
     void onHTTPError(QNetworkReply::NetworkError error);
     void reconnect();
 
-    QWebSocket m_webSocket;
+    QWebSocket websocket;
     QNetworkReply *reply;
     QNetworkAccessManager qnam;
     QString token;
-    QProcess player;
     QString last_command;
+    QProcess player;
 
     unsigned int player_current;
     unsigned int players_count = 2;
