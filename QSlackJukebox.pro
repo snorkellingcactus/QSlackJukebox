@@ -22,3 +22,6 @@ SOURCES += main.cpp \
 HEADERS += \
     QSlackJukebox.h \
     QSlackJukebox.h
+
+DISTFILES += \
+    README.md
