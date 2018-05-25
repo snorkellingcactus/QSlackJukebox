@@ -7,7 +7,16 @@ Currently, there are two hardcoded bash commands.
 and
 `bash -c "youtube-dl -o - ${RECEIVED_MESSAGE} | vlc -"`
 
-To compile de app you should:
+So you should manage to install those two by now.
+
+I used pip to do it.
+
+`sudo pip install youtube-dl`
+`sudo pip install streamlink`
+
+And VLC from your package manager.
+
+To compile the project do:
 
 `mkdir build`
 `cd build`
