@@ -48,7 +48,7 @@ template <class PlayerType> class YoutubeDL : public Player {
         QStringList arguments(QString resource) {
             return  QStringList("-c") <<
                     QString("youtube-dl -o - ") + resource + " | " +
-                    slave.command("-").join(" ");
+                    slave.command("-").join(" ") + QString(" --file-caching 100000");
         }
 
         PlayerType slave;
