@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Exec=xterm -hold -iconic -e "/home/iftech/QSlackJukebox/build/QSlackJukebox ${API_KEY}"
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=ifmediaplayer2
+Comment=
