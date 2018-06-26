@@ -8,27 +8,7 @@
 #include <QNetworkRequest>
 #include <QProcess>
 
-#include <pulse/pulseaudio.h>
-
-// Place all this somewhere auto-contained.
-extern bool pulseActionReady;
-extern int volume;
-extern float volume_one_percent;
-extern int *pa_error;
-
-extern pa_context *_pa_context;
-extern pa_mainloop *_pa_mainloop;
-
-// We may want to handle errors (timeout (tryout)) here.
-// We may want a max.
-void pulseAudioExec();
-void pulseAudioActionCompleted();
-void onPulseAudioVolumeGet(pa_context *c, const pa_sink_info *sink_info, int eol, void *userdata);
-void onPulseAudioVolumeSet(pa_context *_pa_context, int success, void *data);
-void pulseAudioVolumeGet();
-void pulseAudioVolumeSet();
-void onPulseAudioStateChanged();
-void pulseAudioInitialize();
+#include "Pulse.h"
 
 class Player {
     public:
@@ -84,7 +64,7 @@ class QSlackJukebox : public QObject
 {
     Q_OBJECT
 public:
-    QSlackJukebox(QString _token, QObject *parent = nullptr);
+    QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent = nullptr);
 private Q_SLOTS:
     void onConnected();
     void onMessage(QString message);
@@ -108,6 +88,8 @@ private:
     unsigned int player_current;
     unsigned int players_count = 2;
     Player *players[2];
+
+    Pulse *audio_engine;
 };
 
 #endif // QSlackJukebox_H

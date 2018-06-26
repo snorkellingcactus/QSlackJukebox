@@ -6,9 +6,11 @@
 
 QT_USE_NAMESPACE
 
-QSlackJukebox::QSlackJukebox(QString _token, QObject *parent) :
+QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent) :
     QObject(parent)
 {
+    audio_engine = _audio_engine;
+
     //pa_context_get_server_info()
     token = _token;
 
@@ -56,29 +58,15 @@ void QSlackJukebox::onMessage(QString message)
             volume_inc = -10;
         }
 
-        if(volume_inc){
-            qWarning() << "  Volume was: " << volume;
-
-            pulseAudioVolumeGet();
-            volume += volume_inc;
-
-            if(volume > 100) {
-                volume = 100;
-            }
-
-            if(volume < 0){
-                volume = 0;
-            }
-
-            pulseAudioVolumeSet();
-            pulseAudioVolumeGet();
-
-            qWarning() << "  Volume is: " << volume;
+        if(volume_inc) {
+            qWarning() << "  Volume was: " << audio_engine->volume();
+            audio_engine->volumeSetRelative(volume_inc);
+            qWarning() << "  Volume is: " << audio_engine->volume();
 
             handled = true;
         }
 
-        if(!handled && !last_command.isEmpty()){
+        if(!handled && !last_command.isEmpty()) {
             player_current = 0;
 
             tryNextPlayer();
