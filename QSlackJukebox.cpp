@@ -9,6 +9,7 @@ QT_USE_NAMESPACE
 QSlackJukebox::QSlackJukebox(QString _token, QObject *parent) :
     QObject(parent)
 {
+    //pa_context_get_server_info()
     token = _token;
 
     connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
@@ -29,8 +30,6 @@ void QSlackJukebox::onConnected()
     qWarning() << "QSlackJukebox::onConnected";
 
     connect(&websocket, &QWebSocket::textMessageReceived, this, &QSlackJukebox::onMessage);
-
-    //websocket.sendTextMessage(QStringLiteral("Hello, world!"));
 }
 
 void QSlackJukebox::onMessage(QString message)
@@ -41,12 +40,45 @@ void QSlackJukebox::onMessage(QString message)
 
     if(_message["type"].toString() == "message") {
         last_command = QString(_message["text"].toString());
+        bool handled = false;
 
         if(last_command.startsWith("<")){
             last_command = last_command.mid(1, last_command.size() -2);
         }
 
-        if(!last_command.isEmpty()){
+        short int volume_inc = 0;
+
+        if(last_command == QString("+")) {
+            volume_inc = 10;
+        }
+
+        if(last_command == QString("-")) {
+            volume_inc = -10;
+        }
+
+        if(volume_inc){
+            qWarning() << "  Volume was: " << volume;
+
+            pulseAudioVolumeGet();
+            volume += volume_inc;
+
+            if(volume > 100) {
+                volume = 100;
+            }
+
+            if(volume < 0){
+                volume = 0;
+            }
+
+            pulseAudioVolumeSet();
+            pulseAudioVolumeGet();
+
+            qWarning() << "  Volume is: " << volume;
+
+            handled = true;
+        }
+
+        if(!handled && !last_command.isEmpty()){
             player_current = 0;
 
             tryNextPlayer();

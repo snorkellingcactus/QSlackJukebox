@@ -8,6 +8,28 @@
 #include <QNetworkRequest>
 #include <QProcess>
 
+#include <pulse/pulseaudio.h>
+
+// Place all this somewhere auto-contained.
+extern bool pulseActionReady;
+extern int volume;
+extern float volume_one_percent;
+extern int *pa_error;
+
+extern pa_context *_pa_context;
+extern pa_mainloop *_pa_mainloop;
+
+// We may want to handle errors (timeout (tryout)) here.
+// We may want a max.
+void pulseAudioExec();
+void pulseAudioActionCompleted();
+void onPulseAudioVolumeGet(pa_context *c, const pa_sink_info *sink_info, int eol, void *userdata);
+void onPulseAudioVolumeSet(pa_context *_pa_context, int success, void *data);
+void pulseAudioVolumeGet();
+void pulseAudioVolumeSet();
+void onPulseAudioStateChanged();
+void pulseAudioInitialize();
+
 class Player {
     public:
         Player(QString _program, QString _display_name){

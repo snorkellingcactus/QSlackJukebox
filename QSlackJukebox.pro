@@ -25,3 +25,5 @@ HEADERS += \
 
 DISTFILES += \
     README.md
+
+unix:!macx: LIBS += -lpulse
