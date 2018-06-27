@@ -9,7 +9,10 @@ QT_USE_NAMESPACE
 short int QSlackJukebox::LAST_VOLUME_NULL = -1;
 
 QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent) :
-    QObject(parent), last_volume(-1), last_player_status(PLAYER_STATUS::DIED)
+    QObject(parent),
+    last_volume(-1),
+    last_player_status(PLAYER_STATUS::DIED),
+    last_message_id(0)
 {
     audio_engine = _audio_engine;
 
@@ -51,6 +54,14 @@ void QSlackJukebox::onMessage(QString message)
             last_command = last_command.mid(1);
 
             bool handled = false;
+
+            if(last_command == QString("qsj_listen_here")){
+                last_channel = _message["channel"].toString();
+
+                sendMessage("Ok");
+
+                handled = true;
+            }
 
             if(last_command.endsWith(">")){
                 last_command = last_command.mid(last_command.indexOf("<") + 1).chopped(1);
@@ -143,6 +154,26 @@ bool QSlackJukebox::currentPlayerSendKillSignal(const std::string signal) {
     }
 
     return applied;
+}
+
+void QSlackJukebox::sendMessage( QString message ){
+     message = QString::fromStdString( QJsonDocument ( QJsonObject (
+                 {
+                     { "id"      ,    ++last_message_id   },
+                     { "type"    ,    "message"           },
+                     { "channel" ,    last_channel        },
+                     { "text"    ,    message             }
+                 }
+            )
+        ).toJson().toStdString()
+    );
+
+    qWarning() << "QSlackJukebox::sendMessage";
+    qWarning() << "  " << message;
+
+    if( !last_channel.isNull() ) {
+        websocket.sendTextMessage(message);
+    }
 }
 
 void QSlackJukebox::currentPlayerKill() {

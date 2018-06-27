@@ -81,6 +81,7 @@ private:
     void currentPlayerPause();
     void currentPlayerResume();
     void currentPlayerToggle();
+    void sendMessage(QString message);
 
     void onHTTPError(QNetworkReply::NetworkError error);
     void reconnect();
@@ -90,6 +91,8 @@ private:
     QNetworkAccessManager qnam;
     QString token;
     QString last_command;
+    int last_message_id;
+    QString last_channel;
     QProcess player;
 
     short int last_volume;
