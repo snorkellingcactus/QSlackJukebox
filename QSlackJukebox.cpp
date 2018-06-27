@@ -55,16 +55,17 @@ void QSlackJukebox::onMessage(QString message)
 
             bool handled = false;
 
-            if(last_command == QString("qsj_listen_here")){
-                last_channel = _message["channel"].toString();
+            if(last_command == QString("qsj")){
+                QString new_channel = _message["channel"].toString();
+                if(new_channel != last_channel){
+                    last_channel = new_channel;
 
-                sendMessage("Ok");
+                    sendMessage("Te escucho.");
+                } else {
+                    sendMessage("Que tene alzheimer ameo.");
+                }
 
                 handled = true;
-            }
-
-            if(last_command.endsWith(">")){
-                last_command = last_command.mid(last_command.indexOf("<") + 1).chopped(1);
             }
 
             short int volume_inc = 0;
@@ -77,10 +78,10 @@ void QSlackJukebox::onMessage(QString message)
                 volume_inc = -10;
             }
 
-            if(!handled && volume_inc) {
-                qWarning() << "  Volume was: " << audio_engine->volume();
+            if(!handled && volume_inc) {;
                 audio_engine->volumeSetRelative(volume_inc);
-                qWarning() << "  Volume is: " << audio_engine->volume();
+
+                sendVolume();
 
                 handled = true;
             }
@@ -94,15 +95,25 @@ void QSlackJukebox::onMessage(QString message)
 
                 if(conversion_was_ok){
                     audio_engine->volumeSet(new_volume);
+
+                    sendVolume();
+                } else {
+                    sendMessage("Eso no es un número queride amigue.");
                 }
 
                 handled = true;
             }
 
             if(!handled && last_command.startsWith("m")) {
-                last_volume = audio_engine->volume();
+                if(audio_engine->volume() != 0){
+                    last_volume = audio_engine->volume();
 
-                audio_engine->volumeSet(0);
+                    audio_engine->volumeSet(0);
+
+                    sendMessage(":zipper_mouth_face:");
+                } else {
+                    sendMessage("Ya me dijo eso doña.");
+                }
 
                 handled = true;
             }
@@ -112,13 +123,19 @@ void QSlackJukebox::onMessage(QString message)
                     audio_engine->volumeSet(last_volume);
 
                     last_volume = LAST_VOLUME_NULL;
+
+                    sendMessage(":i_love_you_hand_sign:");
+                } else {
+                    sendMessage("Imposible. Estoy rockandrolleando en este momento.");
                 }
 
                 handled = true;
             }
 
-            if(!handled && last_command.startsWith("p")) {
+            if(!handled && (last_command == QString("p"))) {
                 currentPlayerPause();
+
+                sendMessage("Basta decía.");
 
                 handled = true;
             }
@@ -126,16 +143,46 @@ void QSlackJukebox::onMessage(QString message)
             if(!handled && last_command.startsWith("r")) {
                 currentPlayerResume();
 
+                sendMessage("atr.");
+
                 handled = true;
             }
 
-            if(!handled && !last_command.isEmpty()) {
-                player_current = 0;
+            if(!handled && last_command.startsWith("play")){
+                if(last_command.endsWith(">")){
+                    last_command = last_command.mid(last_command.indexOf("<") + 1).chopped(1);
 
-                tryNextPlayer();
+                    player_current = 0;
+
+                    tryNextPlayer();
+                } else {
+                    sendMessage("keseso :astonished: ?");
+                }
+            }
+
+            if(!handled && last_command == "h"){
+                sendMessage(
+                    QStringList({
+                        "\\m mute.",
+                        "\\u unmute.",
+                        "\\qsj listen to the channel where this command is typed.",
+                        "\\h this help.",
+                        "\\play <url> plays the specified url.",
+                        "\\p pause.",
+                        "\\r resume.",
+                        "\\+ +10% of volume.",
+                        "\\- -10% of volume.",
+                        "\\v<integer> set volume to <integer> percent.",
+                        "copyboth (left & right), snorkellingcactus, todorotosoft (~R), some rights reserved."
+                    }).join("\n")
+                );
             }
         };
     }
+}
+
+void QSlackJukebox::sendVolume() {
+    sendMessage(QVariant(audio_engine->volume()).toString());
 }
 
 bool QSlackJukebox::currentPlayerSendKillSignal(const std::string signal) {

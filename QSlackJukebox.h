@@ -82,7 +82,7 @@ private:
     void currentPlayerResume();
     void currentPlayerToggle();
     void sendMessage(QString message);
-
+    void sendVolume();
     void onHTTPError(QNetworkReply::NetworkError error);
     void reconnect();
 
