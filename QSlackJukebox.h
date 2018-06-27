@@ -64,6 +64,9 @@ class QSlackJukebox : public QObject
 {
     Q_OBJECT
 public:
+    static short int LAST_VOLUME_NULL;
+    enum PLAYER_STATUS { DIED, PAUSED, RESUMED };
+
     QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent = nullptr);
 private Q_SLOTS:
     void onConnected();
@@ -73,7 +76,11 @@ private slots:
     void onPlayerFinished(int exitCode, QProcess::ExitStatus exitStatus);
 private:
     void tryNextPlayer();
-    void killCurrentPlayer();
+    bool currentPlayerSendKillSignal(const std::string signal);
+    void currentPlayerKill();
+    void currentPlayerPause();
+    void currentPlayerResume();
+    void currentPlayerToggle();
 
     void onHTTPError(QNetworkReply::NetworkError error);
     void reconnect();
@@ -85,11 +92,13 @@ private:
     QString last_command;
     QProcess player;
 
+    short int last_volume;
     unsigned int player_current;
     unsigned int players_count = 2;
     Player *players[2];
 
     Pulse *audio_engine;
+    PLAYER_STATUS last_player_status;
 };
 
 #endif // QSlackJukebox_H

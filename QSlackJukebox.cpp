@@ -6,8 +6,10 @@
 
 QT_USE_NAMESPACE
 
+short int QSlackJukebox::LAST_VOLUME_NULL = -1;
+
 QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent) :
-    QObject(parent)
+    QObject(parent), last_volume(-1), last_player_status(PLAYER_STATUS::DIED)
 {
     audio_engine = _audio_engine;
 
@@ -40,58 +42,136 @@ void QSlackJukebox::onMessage(QString message)
 
     QJsonObject _message(QJsonDocument::fromJson(QByteArray::fromStdString(message.toStdString()) , new QJsonParseError()).object());
 
+    qWarning() << _message;
+
     if(_message["type"].toString() == "message") {
-        last_command = QString(_message["text"].toString());
-        bool handled = false;
+        last_command = _message["text"].toString().trimmed();
 
-        if(last_command.startsWith("<")){
-            last_command = last_command.mid(1, last_command.size() -2);
-        }
+        if(last_command.startsWith("\\")){
+            last_command = last_command.mid(1);
 
-        short int volume_inc = 0;
+            bool handled = false;
 
-        if(last_command == QString("+")) {
-            volume_inc = 10;
-        }
+            if(last_command.endsWith(">")){
+                last_command = last_command.mid(last_command.indexOf("<") + 1).chopped(1);
+            }
 
-        if(last_command == QString("-")) {
-            volume_inc = -10;
-        }
+            short int volume_inc = 0;
 
-        if(volume_inc) {
-            qWarning() << "  Volume was: " << audio_engine->volume();
-            audio_engine->volumeSetRelative(volume_inc);
-            qWarning() << "  Volume is: " << audio_engine->volume();
+            if(last_command == QString("+")) {
+                volume_inc = 10;
+            }
 
-            handled = true;
-        }
+            if(last_command == QString("-")) {
+                volume_inc = -10;
+            }
 
-        if(!handled && !last_command.isEmpty()) {
-            player_current = 0;
+            if(!handled && volume_inc) {
+                qWarning() << "  Volume was: " << audio_engine->volume();
+                audio_engine->volumeSetRelative(volume_inc);
+                qWarning() << "  Volume is: " << audio_engine->volume();
 
-            tryNextPlayer();
-        }
+                handled = true;
+            }
+
+            qWarning() << last_command;
+
+            if(!handled && last_command.startsWith("v")) {
+                bool conversion_was_ok;
+
+                int new_volume = last_command.mid(last_command.indexOf("v") + 1).toInt(&conversion_was_ok);
+
+                if(conversion_was_ok){
+                    audio_engine->volumeSet(new_volume);
+                }
+
+                handled = true;
+            }
+
+            if(!handled && last_command.startsWith("m")) {
+                last_volume = audio_engine->volume();
+
+                audio_engine->volumeSet(0);
+
+                handled = true;
+            }
+
+            if(!handled && last_command.startsWith("u")) {
+                if(last_volume != LAST_VOLUME_NULL) {
+                    audio_engine->volumeSet(last_volume);
+
+                    last_volume = LAST_VOLUME_NULL;
+                }
+
+                handled = true;
+            }
+
+            if(!handled && last_command.startsWith("p")) {
+                currentPlayerPause();
+
+                handled = true;
+            }
+
+            if(!handled && last_command.startsWith("r")) {
+                currentPlayerResume();
+
+                handled = true;
+            }
+
+            if(!handled && !last_command.isEmpty()) {
+                player_current = 0;
+
+                tryNextPlayer();
+            }
+        };
     }
 }
 
-void QSlackJukebox::killCurrentPlayer() {
-    qWarning() << "QSlackJukebox::killCurrentPlayer";
+bool QSlackJukebox::currentPlayerSendKillSignal(const std::string signal) {
+    qWarning() << "QSlackJukebox::currentPlayerSendKillSignal";
 
     qint64 pid = player.processId();
 
-    if(pid > 0){
-        QString command = QString("pkill -9 -P ") + QString::number(pid);
+    bool applied = pid > 0;
+
+    if(applied){
+        QString command = QString::fromStdString("pkill -" + signal + " -P ") + QString::number(pid);
 
         qWarning() << "  " << command;
 
         QProcess::execute(command);
+    }
 
+    return applied;
+}
+
+void QSlackJukebox::currentPlayerKill() {
+    if(currentPlayerSendKillSignal("9")){
         disconnect(&player, 0, 0, 0);
 
         player.kill();
 
         player.waitForFinished(-1);
-    }
+
+        last_player_status = PLAYER_STATUS::DIED;
+    };
+}
+
+void QSlackJukebox::currentPlayerPause() {
+    if(currentPlayerSendKillSignal("SIGSTOP")){
+        last_player_status = PLAYER_STATUS::PAUSED;
+    };
+}
+
+void QSlackJukebox::currentPlayerResume() {
+    if(currentPlayerSendKillSignal("SIGCONT")){
+        last_player_status = PLAYER_STATUS::RESUMED;
+    };
+}
+
+void QSlackJukebox::currentPlayerToggle() {
+    if( last_player_status == PLAYER_STATUS::PAUSED   ) { currentPlayerResume (); }
+    if( last_player_status == PLAYER_STATUS::RESUMED  ) { currentPlayerPause  (); }
 }
 
 void QSlackJukebox::onHTTPFinished() {
@@ -146,7 +226,7 @@ void QSlackJukebox::onPlayerFinished(int exitCode, QProcess::ExitStatus exitStat
     qWarning() << "  Previous player finished with code: " << exitCode;
 
     if (( exitCode == 0 ) && ( exitStatus != QProcess::CrashExit )) {
-        killCurrentPlayer();
+        currentPlayerKill();
     } else {
         tryNextPlayer();
     }
@@ -161,7 +241,7 @@ void QSlackJukebox::tryNextPlayer() {
         qWarning() << "  Exit code was about failure. Will try the next one.";
         qWarning() << "  Trying player number " << player_current + 1 << " of " << players_count;
 
-        killCurrentPlayer();
+        currentPlayerKill();
 
         Player *player_type = players[player_current];
 
