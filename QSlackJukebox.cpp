@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <unistd.h>
 
 QT_USE_NAMESPACE
 
@@ -19,9 +20,6 @@ QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *pare
     //pa_context_get_server_info()
     token = _token;
 
-    connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
-    connect(&websocket, &QWebSocket::disconnected, this, &QSlackJukebox::reconnect);
-
     players[0] = new YoutubeDL<VLC>(VLC());
     players[1] = new Streamlink();
 
@@ -36,7 +34,7 @@ void QSlackJukebox::onConnected()
 {
     qWarning() << "QSlackJukebox::onConnected";
 
-    connect(&websocket, &QWebSocket::textMessageReceived, this, &QSlackJukebox::onMessage);
+    connect(&websocket, &QWebSocket::textMessageReceived, this, &QSlackJukebox::onMessage, Qt::UniqueConnection);
 }
 
 void QSlackJukebox::onMessage(QString message)
@@ -54,6 +52,12 @@ void QSlackJukebox::onMessage(QString message)
             last_command = last_command.mid(1);
 
             bool handled = false;
+
+            if(last_command == QString("reconnect")){
+                reconnect();
+
+                handled = true;
+            }
 
             if(last_command == QString("qsj")){
                 QString new_channel = _message["channel"].toString();
@@ -270,11 +274,17 @@ void QSlackJukebox::onHTTPFinished() {
             qWarning() << "  Error: " << response["error"].toString();
         }
 
-        //qWarning() << "WebSocket server:" << url;
-
     } else {
         qWarning() << "  Error: " << status << " " << reply->errorString() << endl;
+
+        usleep(3000000);
+        reconnect();
     }
+}
+
+void QSlackJukebox::onWebSocketError(QAbstractSocket::SocketError error){
+    qWarning() << "QSlackJukebox::onWebSocketError()";
+    qWarning() << websocket.errorString();
 }
 
 void QSlackJukebox::onHTTPError(QNetworkReply::NetworkError error){
@@ -284,6 +294,12 @@ void QSlackJukebox::onHTTPError(QNetworkReply::NetworkError error){
 }
 
 void QSlackJukebox::reconnect(){
+    websocket.disconnect();
+
+    connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
+    connect(&websocket, &QWebSocket::disconnected, this, &QSlackJukebox::reconnect);
+    connect(&websocket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error), this, &QSlackJukebox::onWebSocketError);
+
     qWarning() << "QSlackJukebox::reconnect()";
 
     QNetworkRequest request;
@@ -291,11 +307,13 @@ void QSlackJukebox::reconnect(){
 
     qWarning() << "  GET " << request.url().toString();
 
+    delete reply;
+
     reply = qnam.get(request);
 
     connect(reply, &QNetworkReply::finished, this, &QSlackJukebox::onHTTPFinished);
 
-    connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::error), this, &QSlackJukebox::onHTTPError);
+    //connect(reply, QOverload<QNetworkReply::NetworkError>::of(&QNetworkReply::error), this, &QSlackJukebox::onHTTPError);
 }
 
 void QSlackJukebox::onPlayerFinished(int exitCode, QProcess::ExitStatus exitStatus) {

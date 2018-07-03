@@ -84,6 +84,7 @@ private:
     void sendMessage(QString message);
     void sendVolume();
     void onHTTPError(QNetworkReply::NetworkError error);
+    void onWebSocketError(QAbstractSocket::SocketError error);
     void reconnect();
 
     QWebSocket websocket;
