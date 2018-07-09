@@ -307,7 +307,10 @@ void QSlackJukebox::reconnect(){
 
     qWarning() << "  GET " << request.url().toString();
 
-    delete reply;
+    if(reply != NULL){
+        qWarning() << " Abort previous";
+        reply->abort();
+    }
 
     reply = qnam.get(request);
 
