@@ -88,7 +88,7 @@ private:
     void reconnect();
 
     QWebSocket websocket;
-    QNetworkReply *reply;
+    QNetworkReply *reply = NULL;
     QNetworkAccessManager qnam;
     QString token;
     QString last_command;

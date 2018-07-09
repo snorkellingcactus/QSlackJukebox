@@ -294,6 +294,7 @@ void QSlackJukebox::onHTTPError(QNetworkReply::NetworkError error){
 }
 
 void QSlackJukebox::reconnect(){
+    // May connect it before and just one time preventing this.
     websocket.disconnect();
 
     connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
