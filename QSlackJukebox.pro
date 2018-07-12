@@ -26,6 +26,7 @@ HEADERS += \
     Pulse.h
 
 DISTFILES += \
-    README.md
+    README.md \
+    TODO
 
 unix:!macx: LIBS += -lpulse

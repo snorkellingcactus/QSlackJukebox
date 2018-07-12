@@ -1,0 +1,14 @@
+ - Make it generic. Make slack an adaptor/plugin.
+ - Gradually move to a direct audio stream.
+     - Use YoutubeDL only and play its output through pulse.
+     - In pulse, adjust audio at applicaction level (not system).
+     - Make finally YoutubeDL optional.
+
+- Store and load config.
+- Logo
+- .desktop
+- Install script
+
+ draft:
+- AI
+
