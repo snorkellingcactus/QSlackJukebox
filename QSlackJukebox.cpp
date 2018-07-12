@@ -24,7 +24,6 @@ QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *pare
             qWarning() << "Connection lost. ( no pongs )";
             reconnect();
         } else {
-            qWarning() << "ping";
             websocket.ping();
 
             ++intervals_from_last_pong;
@@ -44,6 +43,13 @@ QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *pare
     players_count = 2;
 
     //player.setProcessChannelMode(QProcess::ProcessChannelMode::ForwardedChannels);
+
+    connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
+    connect(&websocket, &QWebSocket::disconnected, this, &QSlackJukebox::reconnect);
+    connect(&websocket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error), this, &QSlackJukebox::onWebSocketError);
+    connect(&websocket, &QWebSocket::pong, this, [=] {
+        intervals_from_last_pong = 0;
+    });
 
     reconnect();
 }
@@ -315,17 +321,6 @@ void QSlackJukebox::onHTTPError(QNetworkReply::NetworkError error){
 
 void QSlackJukebox::reconnect(){
     ping_timer->stop();
-    // May connect it before and just one time preventing this.
-    websocket.disconnect();
-
-    connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
-    connect(&websocket, &QWebSocket::disconnected, this, &QSlackJukebox::reconnect);
-    connect(&websocket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error), this, &QSlackJukebox::onWebSocketError);
-    connect(&websocket, &QWebSocket::pong, this, [=] {
-        qWarning() << "pong";
-
-        intervals_from_last_pong = 0;
-    });
 
     qWarning() << "QSlackJukebox::reconnect()";
 
@@ -334,8 +329,7 @@ void QSlackJukebox::reconnect(){
 
     qWarning() << "  GET " << request.url().toString();
 
-    if(reply != NULL){
-        qWarning() << " Abort previous";
+    if(reply != NULL) {
         reply->abort();
     }
 
