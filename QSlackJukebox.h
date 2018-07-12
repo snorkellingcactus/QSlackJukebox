@@ -7,6 +7,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QProcess>
+#include <QTimer>
 
 #include "Pulse.h"
 
@@ -65,6 +66,9 @@ class QSlackJukebox : public QObject
     Q_OBJECT
 public:
     static short int LAST_VOLUME_NULL;
+    static short int PING_INTERVAL;
+    static short int PING_INTERVAL_COUNT_MAX;
+
     enum PLAYER_STATUS { DIED, PAUSED, RESUMED };
 
     QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent = nullptr);
@@ -87,6 +91,7 @@ private:
     void onWebSocketError(QAbstractSocket::SocketError error);
     void reconnect();
 
+    QTimer *ping_timer;
     QWebSocket websocket;
     QNetworkReply *reply = NULL;
     QNetworkAccessManager qnam;
@@ -96,6 +101,7 @@ private:
     QString last_channel;
     QProcess player;
 
+    short int intervals_from_last_pong;
     short int last_volume;
     unsigned int player_current;
     unsigned int players_count = 2;

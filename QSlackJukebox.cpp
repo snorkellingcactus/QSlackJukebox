@@ -8,13 +8,31 @@
 QT_USE_NAMESPACE
 
 short int QSlackJukebox::LAST_VOLUME_NULL = -1;
+short int QSlackJukebox::PING_INTERVAL = 5000;
+short int QSlackJukebox::PING_INTERVAL_COUNT_MAX = 3;
 
 QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *parent) :
     QObject(parent),
+    intervals_from_last_pong(0),
     last_volume(-1),
     last_player_status(PLAYER_STATUS::DIED),
-    last_message_id(0)
+    last_message_id(0),
+    ping_timer(new QTimer(this))
 {
+    connect(ping_timer, &QTimer::timeout, [=]{
+        if(intervals_from_last_pong >= PING_INTERVAL_COUNT_MAX){
+            qWarning() << "Connection lost. ( no pongs )";
+            reconnect();
+        } else {
+            qWarning() << "ping";
+            websocket.ping();
+
+            ++intervals_from_last_pong;
+        }
+    });
+
+    ping_timer->setInterval(PING_INTERVAL);
+
     audio_engine = _audio_engine;
 
     //pa_context_get_server_info()
@@ -33,6 +51,8 @@ QSlackJukebox::QSlackJukebox(QString _token, Pulse *_audio_engine, QObject *pare
 void QSlackJukebox::onConnected()
 {
     qWarning() << "QSlackJukebox::onConnected";
+
+    ping_timer->start();
 
     connect(&websocket, &QWebSocket::textMessageReceived, this, &QSlackJukebox::onMessage, Qt::UniqueConnection);
 }
@@ -294,12 +314,18 @@ void QSlackJukebox::onHTTPError(QNetworkReply::NetworkError error){
 }
 
 void QSlackJukebox::reconnect(){
+    ping_timer->stop();
     // May connect it before and just one time preventing this.
     websocket.disconnect();
 
     connect(&websocket, &QWebSocket::connected, this, &QSlackJukebox::onConnected);
     connect(&websocket, &QWebSocket::disconnected, this, &QSlackJukebox::reconnect);
     connect(&websocket, QOverload<QAbstractSocket::SocketError>::of(&QWebSocket::error), this, &QSlackJukebox::onWebSocketError);
+    connect(&websocket, &QWebSocket::pong, this, [=] {
+        qWarning() << "pong";
+
+        intervals_from_last_pong = 0;
+    });
 
     qWarning() << "QSlackJukebox::reconnect()";
 
